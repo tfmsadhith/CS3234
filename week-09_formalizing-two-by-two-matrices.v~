@@ -1,0 +1,324 @@
+(* week-09_formalizing-two-by-two-matrices.v *)
+(* LPP 2024 - CS3234 2023-2024, Sem2 *)
+(* Olivier Danvy <danvy@yale-nus.edu.sg> *)
+(* Version of Fri 22 Mar 2024 *)
+
+(* ********** *)
+
+Ltac fold_unfold_tactic name := intros; unfold name; fold name; reflexivity.
+
+Require Import Arith.
+
+(* ********** *)
+
+(*
+  In plain english,
+  A 2 by 2 matrix whose entries are all natural numbers
+*)
+Inductive m22 : Type := M22 : nat -> nat -> nat -> nat -> m22.
+
+Property componential_equality_m22 :
+  forall x11 x12 x21 x22 y11 y12 y21 y22 : nat,
+    M22 x11 x12
+        x21 x22 =
+    M22 y11 y12
+        y21 y22
+    <->
+    x11 = y11 /\ x12 = y12 /\ x21 = y21 /\ x22 = y22.
+
+Proof.
+  intros x11 x12 x21 x22 y11 y12 y21 y22.
+  split.
+
+  - intro H_tmp.
+    injection H_tmp as H11 H12 H21 H22.
+    rewrite -> H11.
+    rewrite -> H12.
+    rewrite -> H21.
+    rewrite -> H22.
+    split; [reflexivity | split; [reflexivity | split; [reflexivity | reflexivity]]].
+
+  - intros [H11 [H12 [H21 H22]]].
+    rewrite -> H11.
+    rewrite -> H12.
+    rewrite -> H21.
+    rewrite -> H22.
+    reflexivity.
+Qed.
+
+(* ***** *)
+
+Definition zero_m22 := M22 0 0
+                           0 0.
+
+Definition add_m22 (x y : m22) : m22 :=
+  match (x, y) with
+    (M22 x11 x12
+         x21 x22,
+     M22 y11 y12
+         y21 y22) =>
+    M22 (x11 + y11) (x12 + y12)
+        (x21 + y21) (x22 + y22)
+  end.
+
+Lemma add_m22_assoc :
+  forall x y z : m22,
+    add_m22 x (add_m22 y z) =
+    add_m22 (add_m22 x y) z.
+Proof.
+  intros [x11 x12
+          x21 x22]
+         [y11 y12
+          y21 y22]
+         [z11 z12
+          z21 z22].
+  unfold add_m22.
+  rewrite ->4 Nat.add_assoc.
+  reflexivity.
+Qed.
+
+Lemma add_m22_0_l :
+  forall x : m22,
+    add_m22 zero_m22 x = 
+    x.
+Proof.
+  intros [x11 x12
+          x21 x22].
+  unfold add_m22, zero_m22.
+  rewrite ->4 Nat.add_0_l.
+  reflexivity.
+Qed.
+
+Lemma add_m22_0_r :
+  forall x : m22,
+    add_m22 x zero_m22 =
+    x.
+Proof.
+  intros [x11 x12
+          x21 x22].
+  unfold add_m22, zero_m22.
+  rewrite ->4 Nat.add_0_r.
+  reflexivity.
+Qed.
+
+(* ********** *)
+
+Inductive mm22 : Type := MM22 : m22 -> m22 -> m22 -> m22 -> mm22.
+
+(* To get used to matrices, let us try proving
+   that matrix addition is commutative *)
+
+Theorem add_m22_comm:
+  forall x y : m22,
+      add_m22 x y = add_m22 y x.
+
+Proof.
+  intros [x11 x12 x21 x22] [y11 y12 y21 y22].
+  unfold add_m22.
+  rewrite -> (Nat.add_comm x11 y11).
+  rewrite -> (Nat.add_comm x12 y12).
+  rewrite -> (Nat.add_comm x21 y21).
+  rewrite -> (Nat.add_comm x22 y22).
+  reflexivity.
+Qed.  
+
+(* The standard formula
+   "row by column" kids
+   learn *)
+Definition mul_m22 (x y : m22) : m22 :=
+  match (x, y) with
+    (M22 x11 x12
+         x21 x22,
+     M22 y11 y12
+         y21 y22)
+  => (M22 (x11*y11 + x12*y21) (x11*y12 + x12*y22)
+          (x21*y11 + x22*y21) (x21*y12 + x22*y22))
+  end.
+
+Theorem mul_m22_not_comm:
+  exists x y : m22,
+    mul_m22 x y <> mul_m22 y x.
+
+(* Cool question:
+
+   Suppose we have two matrices
+   whose entries are natural numbers
+   ranging from 0 to n.
+
+   What is the probability that the
+   two matrices satisfiy commutativity?
+
+   Delete before submission, it is just
+   a thought
+*)
+   
+
+Proof.
+  exists (M22 1 2 3 4).
+  exists (M22 5 6 7 8).
+
+  compute.
+
+  intros H.
+  discriminate.
+Qed.
+  
+Theorem mul_22_assoc:
+  forall x y z : m22,
+    mul_m22 x (mul_m22 y z) = mul_m22 (mul_m22 x y) z.
+
+Proof.
+  intros [x11 x12 x21 x22]
+         [y11 y12 y21 y22]
+         [z11 z12 z21 z22].
+
+  unfold mul_m22.
+  rewrite -> componential_equality_m22.
+  split;
+  (* If anyone can clean this up,
+     please do so, this is definitely ugly *)
+  [rewrite ->2 Nat.mul_add_distr_l;
+   rewrite ->2 Nat.mul_add_distr_r;
+   rewrite ->4 Nat.mul_assoc;
+   rewrite -> (Nat.add_shuffle1);
+   reflexivity
+  | split;
+  [rewrite ->2 Nat.mul_add_distr_l;
+   rewrite ->2 Nat.mul_add_distr_r;
+   rewrite ->4 Nat.mul_assoc;
+   rewrite -> (Nat.add_shuffle1);
+   reflexivity
+  | split;
+   rewrite ->2 Nat.mul_add_distr_l;
+   rewrite ->2 Nat.mul_add_distr_r;
+   rewrite ->4 Nat.mul_assoc;
+   rewrite -> (Nat.add_shuffle1);
+   reflexivity
+  ]].
+Qed.  
+  
+(* TODO: Write a nice and clean unit test *)
+Compute mul_m22 (M22 1 1 1 1) (M22 0 0 0 0).
+Compute mul_m22 (M22 1 0 1 0) (M22 1 1 1 1).
+Compute mul_m22 (M22 2 2 0 3) (M22 1 2 3 4).
+Compute mul_m22 (M22 18 2 3 123) (M22 1 2 3 4).
+
+Definition id_m22 :=
+  M22 1 0 0 1.
+
+Fixpoint expt_m22 (x : m22) (n : nat) :=
+  match n with
+  | 0 =>
+    id_m22
+  | S n' =>
+    mul_m22 x (expt_m22 x n')
+  end.          
+
+Lemma fold_unfold_expt_m22_0: 
+  forall x : m22,
+    expt_m22 x 0  = id_m22.
+
+Proof.
+  fold_unfold_tactic expt_m22.
+Qed.
+
+Lemma fold_unfold_expt_m22_S:
+  forall (x : m22) (n' : nat),
+    expt_m22 x (S n') = mul_m22 x (expt_m22 x n'). 
+
+Proof.
+  fold_unfold_tactic expt_m22.
+Qed.
+  
+(* TODO : Add proper unit tests and show
+          left and right identity *)
+
+
+(* Now to show the cute property *)
+
+Proposition cute_m22:
+  forall n : nat,
+    expt_m22 (M22 1 1 0 1) n = (M22 1 n 0 1).
+
+Proof.
+  intros n.
+  induction n as [ | n' IHn'].
+
+  * rewrite -> fold_unfold_expt_m22_0.
+    unfold id_m22.
+    reflexivity.
+
+  * (* Just doing algebra on n *)
+    rewrite -> fold_unfold_expt_m22_S.
+    rewrite -> IHn'.
+    unfold mul_m22.
+    simpl (1 * 1 + 1 * 0).
+    simpl (0 * 1 + 1 * 0).
+    simpl (0 * n' + 1 * 1).
+    rewrite ->2 Nat.mul_1_l.
+    rewrite ->Nat.add_1_r.
+    reflexivity.
+Qed.
+
+Proposition sixteen_m22:
+  forall n : nat,
+    expt_m22 (M22 1 1 1 1) (S n) = (M22 (2^n) (2^n) (2^n) (2^n)).
+
+Proof.
+  intros n.
+  induction n as [ | n' IHn'].
+
+  * compute.
+    reflexivity.
+
+  * rewrite -> fold_unfold_expt_m22_S.
+    rewrite -> IHn'.
+    unfold mul_m22.
+    rewrite -> (Nat.mul_1_l).
+    assert (H : 2 ^ n' + 2 ^ n' = 2 ^ (S n')).
+    {
+      rewrite <- (Nat.add_1_r n').
+      Search (_ ^ (_ + _)).
+      rewrite -> (Nat.pow_add_r).
+      simpl (2 ^ 1).
+      Search (_ + _ = _ * _ ).
+      rewrite <- (Nat.mul_1_r (2^n')) at 1.
+      rewrite -> mult_n_Sm.
+      reflexivity.
+    } 
+    rewrite -> H.
+    reflexivity.
+Qed.
+
+(* Let's just hop straight to the general result *)
+
+Search (_ ^ _ = (_ ^ _) ^ _).
+
+Lemma expt_m22_mul_r:
+  forall x 
+
+Proposition pattern_in_the_propositons:
+  forall m n: nat,
+    expt_m22 (M22 (2^m) (2^m)
+                  (2^m) (2^m))
+             (S n)
+    =
+    (M22 (2^(m*(S n) + n)) (2^(m*(S n) + n))
+         (2^(m*(S n) + n)) (2^(m*(S n) + n))).  
+
+Proof.
+  intros m.
+  induction m.
+
+  * exact sixteen_m22.
+
+  * intros n.
+    rewrite <- sixteen_m22.
+    rewrite <- sixteen_m22.
+    
+    
+
+    
+(* ********** *)
+
+(* week-09_formalizing-two-by-two-matrices.v *)

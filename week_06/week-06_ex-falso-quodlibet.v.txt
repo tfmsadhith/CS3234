@@ -1,0 +1,369 @@
+(* week-06_ex-falso-quodlibet.v *)
+(* LPP 2024 - CS3234 2023-2024, Sem2 *)
+(* Olivier Danvy <danvy@yale-nus.edu.sg> *)
+(* Version of 22 Feb 2024 *)
+
+(* ********** *)
+
+Require Import Arith.
+
+(* ********** *)
+
+Property foo :
+  forall P : nat -> Prop,
+    (exists i : nat,
+        P i) ->
+    forall j : nat,
+      P j.
+Proof.
+Abort. (* does not hold, see just below *)
+
+Theorem ex_falso_quodlibet_eg_False :
+  (forall P : nat -> Prop,
+      (exists i : nat,
+          P i) ->
+      forall j : nat,
+        P j) ->
+  0 = 1.
+
+(*
+   The proof sketch in simple english:
+
+   For all propositions about a natural number,
+   if we can show it holds for one natural number,
+   we imply that it holds for all of them.
+
+   Take a proposition like 0 = n and show that it
+   holds when n = 0, by the implication, it must
+   hold for n = 1, which is what we wanted to show.
+
+*)
+
+Proof.
+  intro H_absurd.
+  Check (H_absurd
+           (fun n : nat => 0 = n)).
+  (* : (exists i : nat, 0 = i) -> forall j : nat, 0 = j *)
+  (* wanted: exists i : nat, 0 = i *)
+  Check ex_intro.
+  Check (ex_intro
+           (fun i : nat => 0 = i)).
+  (* : forall x : nat, 0 = x -> exists i : nat, 0 = i *)
+  (* let's pick 0, for example *)
+  Check (ex_intro
+           (fun i : nat => 0 = i)
+           0).
+  Check (ex_intro
+           (fun i : nat => 0 = i)
+           0
+           (eq_refl 0)).
+  (* : exists i : nat, 0 = i *)
+  (* which is what we wanted *)
+  Check (H_absurd
+           (fun n : nat => 0 = n)
+           (ex_intro
+              (fun i : nat => 0 = i)
+              0
+              (eq_refl 0))).
+  (* : forall j : nat, 0 = j *)
+  (* let's pick 1, for example *)
+  
+Check (H_absurd
+           (fun n : nat => 0 = n)
+           (ex_intro
+              (fun i : nat => 0 = i)
+              0
+              (eq_refl 0))
+           1).
+  (* : 0 = 1 *)
+  exact (H_absurd
+           (fun n : nat => 0 = n)
+           (ex_intro
+              (fun i : nat => 0 = i)
+              0
+              (eq_refl 0))
+           1).
+Qed.
+
+(* ********** *)
+
+(* Exercise 06 *)
+
+(*
+
+  Our first instinct was to try to find a
+  proposition that would hold for one of
+  the natural numbers and simply return
+  False for another. Directly dealing with
+  False turned out to be tricky, so we took
+  a step back and looked for a simpler
+  approach.
+
+  We assume that 0 + 1 -> False, which the
+  discriminate tactic will do easily for us.
+
+  Now we have reduced this exercise to 05.
+
+  The insight here is to realise that False
+  implies anything, including False. So once
+  you have shown a way to imply a single False
+  proposition, then you can get to any other
+  propositon, including False.
+
+  Extending this to imply any propositon,
+  Q, would involve showing 0 = 1 -> Q and then
+  applying the discriminate tactic again.
+
+*)
+
+
+Proposition ex_falso_quodlibet_indeed :
+  (forall (P : nat -> Prop),
+      (exists i : nat,
+          P i) ->
+      forall j : nat,
+        P j) -> False.
+
+Proof.
+  assert (H: 0 = 1 -> False).
+  discriminate.
+
+  intro H_absurd.
+  apply H.
+
+  Check (ex_falso_quodlibet_eg_False H_absurd).
+  exact (ex_falso_quodlibet_eg_False H_absurd).
+
+Qed.
+  
+
+(* ********** *)
+
+(* Exercise 07 *)
+
+Property foo : (* stated again, but admitted this time... *)
+  forall P : nat -> Prop,
+    (exists i : nat,
+        P i) ->
+    forall j : nat,
+      P j.
+Proof.
+Admitted. (* ...to prove the following theorem as a corollary of foo *)
+
+
+Theorem ex_falso_quodlibet_eg_True :
+  forall m : nat,
+    exists n : nat,
+      m < n.
+
+
+Proof.
+  (*
+    Using foo, we can show that if a proposition holds
+    once, then it holds for all.
+   *)
+  
+  Check ((foo (fun m : nat => exists n : nat, m < n))).
+  apply (foo (fun m : nat => exists n : nat, m < n)).
+  exists 0.
+  exists 1.
+  Search (0 < 1).
+  exact (Nat.lt_0_1).
+
+  Restart.
+
+  (*
+    Now let us try to imply false with foo, and
+    use that to show the proposition. Remembering
+    that implying false allows us to imply anything.
+
+    On the surface, this method seems more complicated
+    but it has the advantage of being able to prove
+    any proposition, while fiddling with foo directly
+    does not allow you to prove propositions like
+    forall m : nat, (S m) < m, which does not hold
+    for any value of m.
+  *)
+  
+  assert (H: 0 = 1 -> (forall m : nat, exists n : nat, m < n)).
+  discriminate.
+  apply H.
+  exact (foo
+           (fun m : nat => 0 = m)
+             (ex_intro
+                (fun i : nat => 0 = i)
+                0
+                (eq_refl 0))
+             1).
+  
+Qed.
+
+  
+(* ********** *)
+
+(* Exercise 08 *)
+
+
+(*
+  The proposition in simple english.
+
+  We take foo and since we have an implication,
+  we can take the existential quantifier and drag
+  it outside.
+
+*)
+
+Proposition an_equivalence :
+  (forall P : nat -> Prop,
+      (exists i : nat,
+          P i) ->
+      forall j : nat,
+        P j)
+  <->
+  (forall (P : nat -> Prop)
+          (i : nat),
+      P i ->
+      forall j : nat,
+        P j).
+
+(*
+  Same same. Imply false to imply anything.
+
+  We may also use the properties of foo to
+  show foo implies bar by destructing the
+  existential quantifier and using the properties
+  of bar to imply foo.
+
+ *)
+Proof.
+  split.
+
+  * intro H_absurd.
+    assert (H: 0 = 1 -> (forall (P : nat -> Prop) (i : nat), P i -> forall j : nat, P j)).
+
+    - discriminate.
+    - apply H.
+      Check (H_absurd).
+      exact (H_absurd
+               (fun n : nat => 0 = n)
+               (ex_intro
+                  (fun i : nat => 0 = i)
+                  0
+                  (eq_refl 0))
+               1).
+
+  * intro H_absurd.
+    assert (H: 0 = 1 -> (forall P : nat -> Prop, (exists i : nat, P i) -> forall j : nat, P j)).
+
+    - discriminate.
+    - apply H.
+      Check (H_absurd).
+      exact (H_absurd (fun n : nat => 0 = n)
+             0
+             (eq_refl 0)
+             1).
+
+  Restart.
+
+  split.
+
+  * intro H_foo.
+    intro P.
+    assert (H_foo_P := H_foo P).    
+    intro i.
+    intro H_bar_P_i.
+    apply H_foo_P.
+    exists i.
+    exact H_bar_P_i.
+
+ * intro H_bar.
+   intro P.
+   intro H_foo_P.
+   destruct H_foo_P as [i H_foo_P_i].
+   exact (H_bar P i H_foo_P_i).
+
+Qed.      
+(* ********** *)
+
+(* Exercise 08 *)
+
+Property bar :
+  forall (P : nat -> Prop)
+         (i : nat),
+    P i ->
+    forall j : nat,
+      P j.
+Proof.
+Abort. (* does not hold, see just below *)
+
+Theorem ex_falso_quodlibet_eg_False_revisited :
+  (forall (P : nat -> Prop)
+          (i : nat),
+      P i ->
+      forall j : nat,
+        P j) ->
+  0 = 1.
+
+Proof.
+  intro H_absurd.
+
+  exact (H_absurd (fun n : nat => 0 = n)
+         0
+         (eq_refl 0)
+         1).
+Qed.
+
+  
+(* ********** *)
+
+(* Exercise 10 *)
+
+Property bar : (* stated again, but admitted this time... *)
+  forall (P : nat -> Prop)
+         (i : nat),
+    P i ->
+    forall j : nat,
+      P j.
+Proof.
+Admitted. (* ...to prove the following theorem as a corollary of bar *)
+
+Theorem ex_falso_quodlibet_eg_True_revisited :
+  forall m : nat,
+    exists n : nat,
+      m < n.
+
+(*
+  We will first prove this property by fiddling with bar.
+  This is pretty easy, we show 0 < 1 and by bar the theorem
+  holds.
+
+  Next we we will use our routine trick of using bar
+  to show a False proposition (0 = 1, because we have
+  already done it) to show that we are capable of doing
+  routine things (proving something from False) routinely.
+
+*)
+  
+Proof.
+  exact (bar (fun m : nat => exists n : nat, m < n)
+         0
+         (ex_intro (fun i : nat => 0 < i)
+                    1
+                    Nat.lt_0_1)).
+
+  Restart.
+
+  assert (H: 0 = 1 -> (forall m : nat, exists n : nat, m < n)).
+
+  * discriminate.
+  * apply H.
+    exact (bar (fun n : nat => 0 = n)
+          0
+          (eq_refl 0)
+          1).
+Qed.
+
+
+(* ********** *)
+
+(* end of week-06_ex-falso-quodlibet.v *)

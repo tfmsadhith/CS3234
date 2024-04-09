@@ -1,0 +1,99 @@
+Require Import Bool Arith.
+
+Ltac fold_unfold_tactic name := intros; unfold name; fold name; reflexivity.
+
+Fixpoint is_even (n : nat) :=
+  match n with
+  | O => true
+  | S n' => negb (is_even n')
+  end.
+
+Compute is_even 3.
+Compute is_even 4.
+
+Definition specification_of_even_numbers (f : nat -> bool) :=
+  f O = true /\ forall n : nat, f (S n) = negb (f n).
+
+
+Lemma fold_unfold_is_even_O:
+  is_even O = true.
+Proof.
+  fold_unfold_tactic is_even.
+Qed.
+
+Lemma fold_unfold_is_even_S:
+  forall n : nat, is_even (S n) = negb (is_even n).
+Proof.
+  fold_unfold_tactic is_even.
+Qed.
+
+(*I'm just gonna claim that my is_even function is the definition of even numbers*)
+(*Easier to prove this stronger statement*)
+Theorem even_numbers_are_divisible_by_two:
+  forall n : nat,
+    (is_even n = true ->
+    exists p : nat,
+      n = 2 * p)
+    /\
+    (is_even n = false ->
+     exists p : nat,
+       n = S (2 * p)).
+Proof.
+  intro n.
+  assert (H_even_or_odd : forall m : nat, is_even m = true \/ is_even m = false).
+  { intro m.
+    induction m as [ | m' [IHm'_even | IHm'_odd]].
+    - left.
+      exact fold_unfold_is_even_O.
+    - right.
+      rewrite -> (fold_unfold_is_even_S m').
+      rewrite -> IHm'_even.
+      unfold negb.
+      reflexivity.
+    - left.
+      rewrite -> (fold_unfold_is_even_S m').
+      rewrite -> IHm'_odd.
+      unfold negb.
+      reflexivity.
+  }
+  induction n as [ | n' IHn'].
+  - split.
+    + intro H_even.
+      exists 0.
+      compute.
+      reflexivity.
+    + intro H_odd.
+      assert (H_even := fold_unfold_is_even_O).
+      rewrite -> H_odd in H_even.
+      discriminate H_even.
+  - assert (H_n'_even_or_odd := H_even_or_odd n').
+    destruct (H_n'_even_or_odd) as [H_n'_even | H_n'_odd].
+    + split.
+      * intro H_Sn'_even.
+        rewrite -> (fold_unfold_is_even_S n') in H_Sn'_even.
+        rewrite -> H_n'_even in H_Sn'_even.
+        discriminate.
+      * destruct IHn' as [IHn'_even _].
+        destruct (IHn'_even H_n'_even) as [p IHn'_even_p].
+        intro H_Sn'_even.
+        exists p.
+        rewrite -> IHn'_even_p.
+        reflexivity.
+    + split.
+      * destruct IHn' as [_ IHn'_odd].
+        destruct (IHn'_odd H_n'_odd) as [p IHn'_odd_p].
+        intro H_Sn'_even.
+        exists (p + 1).
+        rewrite -> IHn'_odd_p.
+        rewrite <- (Nat.add_1_r (2 * p)).
+        rewrite <- (Nat.add_1_r (2 * p + 1)).
+        rewrite <- (Nat.add_assoc (2 * p) 1 1).
+        rewrite -> (Nat.add_1_r 1).
+        rewrite <- (Nat.mul_1_r 2) at 2.
+        symmetry.
+        exact (Nat.mul_add_distr_l 2 p 1).
+      * intro H_Sn'_odd.
+        rewrite -> (fold_unfold_is_even_S n') in H_Sn'_odd.
+        rewrite -> H_n'_odd in H_Sn'_odd.
+        discriminate H_Sn'_odd.
+Qed.
